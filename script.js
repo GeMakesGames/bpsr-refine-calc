@@ -265,7 +265,31 @@ function findOptimalCombinations(baseRate, prices, baseAttemptCost, baseAvgAttem
 
     // 3. Sort and Return Top 10
     filtered.sort((a, b) => a.totalCost - b.totalCost);
-    return filtered.slice(0, 10);
+    const top10 = filtered.slice(0, 10);
+
+    // 4. Recommendation Logic
+    if (top10.length > 0) {
+        const cheapest = top10[0];
+        // cheapest.isCheapest = true; // Handled below
+
+        // Find cheapest 100% option
+        const cheapest100 = top10.find(s => s.effectiveRate >= 1.0);
+
+        const margin = 1.05; // 5% worth it margin
+        if (cheapest100 && cheapest100.totalCost <= cheapest.totalCost * margin) {
+            cheapest100.isRecommended = true;
+            if (cheapest100 !== cheapest) {
+                cheapest.isCheapest = true;
+            }
+        } else {
+            cheapest.isRecommended = true;
+        }
+
+        // 5. Ensure RECOMMENDED is at the top
+        top10.sort((a, b) => (a.isRecommended ? -1 : b.isRecommended ? 1 : 0));
+    }
+
+    return top10;
 }
 
 function renderResults(base, baseCost, savingPerPct, itemResults, baseRate, breakdown) {
@@ -381,13 +405,19 @@ function renderOptimization(strategies) {
             (s.moss === 0 && s.buri === 0 && s.meteor === 0) ? '<span style="opacity:0.5">None</span>' : ''
         ].join('');
 
-        const verdictStr = index === 0 ? '<span style="color:var(--success); font-weight:bold;">BEST</span>' : '';
+        let verdictStr = '';
+        if (s.isRecommended) {
+            verdictStr += '<span style="color:var(--success); font-weight:bold; background: rgba(74, 222, 128, 0.1); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(74, 222, 128, 0.3); margin-right: 4px; font-size: 0.75rem; vertical-align: middle;">RECOMMENDED</span>';
+        }
+        if (s.isCheapest) {
+            verdictStr += '<span style="color:var(--primary); font-weight:bold; background: rgba(53, 167, 255, 0.1); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(53, 167, 255, 0.3); font-size: 0.75rem; vertical-align: middle;">CHEAPEST</span>';
+        }
 
         row.innerHTML = `
             <td>${itemsStr}</td>
             <td>${(s.rate * 100).toFixed(0)}%</td>
             <td>${s.avgAttempts.toFixed(2)}</td>
-            <td style="color:${index === 0 ? 'var(--text-main)' : 'var(--text-muted)'}">${fmt(s.totalCost)}</td>
+            <td style="color:${(s.isCheapest || s.isRecommended) ? 'var(--text-main)' : 'var(--text-muted)'}">${fmt(s.totalCost)}</td>
             <td>${verdictStr}</td>
         `;
         tbody.appendChild(row);
