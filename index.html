@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BPSR Refine Calculator</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+
+    <main class="container">
+        <header>
+            <h1>Refine Calculator</h1>
+            <p class="subtitle">Blue Protocol Star Resonance</p>
+        </header>
+
+        <div class="calculator-card">
+
+            <!-- Two Column Layout for Desktop -->
+            <div class="main-grid">
+
+                <!-- Col 1: Market Prices -->
+                <section class="price-list">
+                    <div class="section-header" id="priceHeader">
+                        <h2>Market Prices</h2>
+                        <button class="toggle-btn" id="togglePrices">▼</button>
+                    </div>
+
+                    <div id="priceContent" class="collapsible-content">
+                        <p class="section-desc">Enter unit prices for materials</p>
+
+                        <div class="divider">Crystals</div>
+                        <div class="input-row split">
+                            <input type="number" id="priceCrystal1" placeholder="Lv.1 Price">
+                            <input type="number" id="priceCrystal2" placeholder="Lv.2 Price">
+                            <input type="number" id="priceCrystal3" placeholder="Lv.3 Price">
+                        </div>
+
+                        <div class="divider">Materials</div>
+                        <div class="field">
+                            <label>Mystery Metal (Weapon/Armor)</label>
+                            <input type="number" id="priceMystery" placeholder="Price">
+                        </div>
+                        <div class="field">
+                            <label>Radiant Stone (Accs/Shoes)</label>
+                            <input type="number" id="priceRadiant" placeholder="Price">
+                        </div>
+                        <div class="field">
+                            <label>Fine Forgestone (Ring/Bracelet)</label>
+                            <input type="number" id="priceFine" placeholder="Price">
+                        </div>
+
+                        <div class="divider">Support Items</div>
+                        <div class="field">
+                            <label>Buri Shard</label>
+                            <input type="number" id="priceBuri" placeholder="Price">
+                        </div>
+                        <div class="field">
+                            <label>Meteorite Shard</label>
+                            <input type="number" id="priceMeteor" placeholder="Price">
+                        </div>
+                        <div class="field">
+                            <label>Moss Shard</label>
+                            <input type="number" id="priceMoss" placeholder="Price">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Col 2: Calculator -->
+                <section class="calculator-logic">
+                    <h2>Refine Settings</h2>
+
+                    <div class="field">
+                        <label>Equipment Slot</label>
+                        <select id="slotType">
+                            <option value="weapon">Weapon</option>
+                            <option value="armor_head">Head / Body Armor</option>
+                            <option value="hand_foot">Hands / Feet Armor</option>
+                            <option value="ear_neck">Earrings / Necklace</option>
+                            <option value="ring_brace">Ring / Bracelet / Charm</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label>Target Level</label>
+                        <select id="currentLevel">
+                            <!-- Populated JS -->
+                        </select>
+                    </div>
+
+                    <button id="calculateBtn">Calculate Value</button>
+                </section>
+            </div>
+
+            <!-- Results Section -->
+            <section id="results" class="results-area hidden">
+                <div class="verdict" id="verdictText"></div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="label">Base Success Rate</span>
+                        <span class="value" id="baseRateValue">--%</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="label">Pity Boost (Avg)</span>
+                        <span class="value" id="pityBoostValue">--%</span>
+                    </div>
+                </div>
+
+                <div class="comparison">
+                    <div class="option base">
+                        <h3>No Items</h3>
+                        <p>Avg Attempts: <span id="baseAttempts">0</span></p>
+                        <p class="cost">Total Cost: <span id="baseTotalCost">0</span></p>
+                    </div>
+                    <div class="option support">
+                        <h3>With Items</h3>
+                        <p>Avg Attempts: <span id="supportAttempts">0</span></p>
+                        <p class="cost">Total Cost: <span id="supportTotalCost">0</span></p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
