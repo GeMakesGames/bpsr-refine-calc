@@ -213,44 +213,54 @@ function findOptimalCombinations(baseRate, prices, baseAttemptCost, baseAvgAttem
     const MAX_BURI = 5;
     const MAX_METEOR = 3;
 
-    // Brute Force Iterate
-    // Optimization: If baseRate is already high, we limit max items to avoid pointless 100%+ checks
-    // But for simplicity/correctness with the user's constraints, we just run the loops.
-    // It's 21 * 6 * 4 = 504 iterations. Very fast.
+    // Brute Force Iterate with Pruning
+    // Rule: "Once 100% is reached do not allow adding a new mat"
 
     for (let m = 0; m <= MAX_MOSS; m++) {
+        const rateAfterMoss = baseRate + (m * 0.03);
+
         for (let b = 0; b <= MAX_BURI; b++) {
+            const rateAfterBuri = rateAfterMoss + (b * 0.05);
+
             for (let t = 0; t <= MAX_METEOR; t++) {
 
                 // Calculate Rate
                 const bonus = (m * 0.03) + (b * 0.05) + (t * 0.05);
                 const currentRate = baseRate + bonus;
 
-                // Stop if we are already way past 100% in a wasteful way? 
-                // Actually, just cap it at 1.0 logic is inside calculateExpectedValue.
-                // But we should record it.
-
-                // Calculate Per Attempt Item Cost
+                // Calculate Costs
                 const itemCostPerAttempt = (m * prices.moss) + (b * prices.buri) + (t * prices.meteor);
                 const totalAttemptCost = baseAttemptCost + itemCostPerAttempt;
 
-                // Calculate Avg Attempts
-                const stats = calculateExpectedValue(currentRate, PITY_INCREMENT, 0, 0); // Boost is in currentRate
+                // Expected Value uses capped rate (max 100%)
+                const effectiveRate = Math.min(currentRate, 1.0);
+                const stats = calculateExpectedValue(effectiveRate, PITY_INCREMENT, 0, 0);
 
-                // Total Project Cost
                 const totalProjectCost = stats.avgAttempts * totalAttemptCost;
 
                 results.push({
                     moss: m,
                     buri: b,
                     meteor: t,
-                    rate: Math.min(currentRate, 1.0),
+                    rate: currentRate, // UI shows raw (e.g. 101%)
                     avgAttempts: stats.avgAttempts,
                     totalCost: totalProjectCost,
-                    itemCostOffset: itemCostPerAttempt // Extra info
+                    itemCostOffset: itemCostPerAttempt
                 });
+
+                // PRUNING: If this specific item addition pushed us to/past 100%, 
+                // we stop adding MORE of this specific item (Meteor).
+                if (currentRate >= 1.0) break;
             }
+
+            // PRUNING: If Moss+Buri (with 0 Meteor) was already >= 100%, 
+            // we stop adding MORE Buri.
+            if (rateAfterBuri >= 1.0) break;
         }
+
+        // PRUNING: If Moss (with 0 Buri/Meteor) was already >= 100%, 
+        // we stop adding MORE Moss.
+        if (rateAfterMoss >= 1.0) break;
     }
 
     // Sort by Total Cost Ascending
@@ -373,8 +383,7 @@ function renderOptimization(strategies) {
             (s.moss === 0 && s.buri === 0 && s.meteor === 0) ? '<span style="opacity:0.5">None</span>' : ''
         ].join('');
 
-        const verdictStr = index === 0 ? '<span style="color:var(--success); font-weight:bold;">BEST</span>' :
-            (index < 3 ? 'Good' : '');
+        const verdictStr = index === 0 ? '<span style="color:var(--success); font-weight:bold;">BEST</span>' : '';
 
         row.innerHTML = `
             <td>${itemsStr}</td>
