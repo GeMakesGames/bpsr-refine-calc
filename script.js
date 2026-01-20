@@ -128,15 +128,38 @@ function calculate() {
 
     const baseAttemptCost = (actualCQty * crystalPrice) + (actualMQty * matPrice);
 
-    // 5. Calculate Marginal Value
-    // Value of 1% = Cost(Base) - Cost(Base + 1%)
+    // 5. Calculate Marginal Value (For Summary Card only - Gross Value)
+    // Value of 1% = How much Luno (Base Mat Cost) we save by reducing attempts with a FREE 1% boost
     const baseStats = calculateExpectedValue(data.success, PITY_INCREMENT, 0, 0);
     const baseTotalCost = baseStats.avgAttempts * baseAttemptCost;
 
     const plusOneStats = calculateExpectedValue(data.success, PITY_INCREMENT, 0.01, 0);
-    const plusOneTotalCost = plusOneStats.avgAttempts * baseAttemptCost;
-
+    const plusOneTotalCost = plusOneStats.avgAttempts * baseAttemptCost; // Material cost only
     const savingPerOnePercent = baseTotalCost - plusOneTotalCost;
+
+    // 6. Calculate Specific Item Value (The Real Math)
+    // Net Profit = (Old_Attempts - New_Attempts) * Base_Cost - (New_Attempts * Item_Price)
+    const calculateItemMath = (boostPct, itemPrice) => {
+        const boost = boostPct / 100;
+        const istats = calculateExpectedValue(data.success, PITY_INCREMENT, boost, 0);
+
+        const grossValue = (baseStats.avgAttempts - istats.avgAttempts) * baseAttemptCost;
+        const totalItemCost = istats.avgAttempts * itemPrice;
+        const netProfit = grossValue - totalItemCost;
+
+        return {
+            grossValue, // "Value" displayed in UI
+            totalItemCost, // "Price" displayed in UI (Total cost of items used)
+            netProfit,
+            isWorth: netProfit > 0
+        };
+    };
+
+    const itemResults = {
+        moss: calculateItemMath(3, pMoss),
+        buri: calculateItemMath(5, pBuri),
+        meteor: calculateItemMath(5, pMeteor)
+    };
 
     // Prepare Breakdown Data
     const breakdown = {
@@ -157,8 +180,8 @@ function calculate() {
         avgAttempts: baseStats.avgAttempts
     };
 
-    // 6. Render
-    renderResults(baseStats, baseTotalCost, savingPerOnePercent, { buri: pBuri, meteor: pMeteor, moss: pMoss }, data.success, breakdown);
+    // 7. Render
+    renderResults(baseStats, baseTotalCost, savingPerOnePercent, itemResults, data.success, breakdown);
 }
 
 function calculateExpectedValue(baseRate, pityStep, itemBoost, currentPityAccumulation) {
@@ -177,7 +200,7 @@ function calculateExpectedValue(baseRate, pityStep, itemBoost, currentPityAccumu
     return { avgAttempts: expectedAttempts };
 }
 
-function renderResults(base, baseCost, savingPerPct, marketPrices, baseRate, breakdown) {
+function renderResults(base, baseCost, savingPerPct, itemResults, baseRate, breakdown) {
     const resultsDiv = document.getElementById('results');
     resultsDiv.classList.remove('hidden');
 
@@ -198,7 +221,7 @@ function renderResults(base, baseCost, savingPerPct, marketPrices, baseRate, bre
                     <div style="font-size: 1.4rem; font-weight: 600; color: var(--text-main);">${(baseRate * 100).toFixed(0)}%</div>
                 </div>
                 <div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">Value of 1% Boost</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">Gross Value of 1% Boost</div>
                     <div style="font-size: 1.4rem; font-weight: 600; color: var(--success); text-shadow: 0 0 10px rgba(74, 222, 128, 0.2);">${fmt(savingPerPct)} Luno</div>
                 </div>
             </div>
@@ -206,22 +229,20 @@ function renderResults(base, baseCost, savingPerPct, marketPrices, baseRate, bre
     `;
 
     // 2. Item Cards (Same Line)
-    const createCard = (name, pct, price) => {
-        const value = savingPerPct * pct;
-        const profit = value - price;
-        const isWorth = profit > 0;
+    const createCard = (name, pct, resultData) => {
+        const { grossValue, totalItemCost, netProfit, isWorth } = resultData;
 
         return `
             <div style="flex: 1; padding: 1.25rem; border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid ${isWorth ? 'rgba(74, 222, 128, 0.4)' : 'rgba(239, 68, 68, 0.4)'}; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-width: 0; box-shadow: ${isWorth ? '0 0 15px rgba(74, 222, 128, 0.1)' : 'none'}; transition: transform 0.2s;">
                 <h3 style="margin: 0 0 0.8rem 0; font-size: 1.1rem; color: var(--text-main); font-weight: 600;">${name} <span style="color: var(--primary); font-size: 0.9em;">+${pct}%</span></h3>
                 
                 <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.4rem; color: var(--text-muted);">
-                    <span>Value:</span>
-                    <span style="color: var(--text-main); font-weight: 600;">${fmt(value)}</span>
+                    <span>Avg Value:</span>
+                    <span style="color: var(--text-main); font-weight: 600;">${fmt(grossValue)}</span>
                 </div>
                 <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">
-                    <span>Price:</span>
-                    <span>${fmt(price)}</span>
+                    <span>Avg Price:</span>
+                    <span>${fmt(totalItemCost)}</span>
                 </div>
 
                 <div style="margin-top: auto; width: 100%; text-align: center;">
@@ -229,7 +250,7 @@ function renderResults(base, baseCost, savingPerPct, marketPrices, baseRate, bre
                         ${isWorth ? 'BUY' : 'SKIP'}
                     </div>
                     <div style="font-size: 0.8rem; color: ${isWorth ? 'var(--success)' : 'var(--danger)'}; opacity: 0.8; font-family: monospace;">
-                        ${isWorth ? 'save' : 'lose'} ${fmt(Math.abs(profit))}
+                        ${isWorth ? 'save' : 'lose'} ${fmt(Math.abs(netProfit))}
                     </div>
                 </div>
             </div>
@@ -238,9 +259,9 @@ function renderResults(base, baseCost, savingPerPct, marketPrices, baseRate, bre
 
     const itemsHtml = `
         <div style="display: flex; gap: 1rem; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; margin-bottom: 1.5rem;">
-            ${createCard('Moss', 3, marketPrices.moss)}
-            ${createCard('Buri', 5, marketPrices.buri)}
-            ${createCard('Meteor', 5, marketPrices.meteor)}
+            ${createCard('Moss', 3, itemResults.moss)}
+            ${createCard('Buri', 5, itemResults.buri)}
+            ${createCard('Meteor', 5, itemResults.meteor)}
         </div>
     `;
 
