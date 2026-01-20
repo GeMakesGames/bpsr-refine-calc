@@ -263,33 +263,48 @@ function findOptimalCombinations(baseRate, prices, baseAttemptCost, baseAvgAttem
         });
     });
 
-    // 3. Sort and Return Top 10
+    // 3. Sort by cost (full list)
     filtered.sort((a, b) => a.totalCost - b.totalCost);
-    const top10 = filtered.slice(0, 10);
 
-    // 4. Recommendation Logic
-    if (top10.length > 0) {
-        const cheapest = top10[0];
-        // cheapest.isCheapest = true; // Handled below
+    // 4. Recommendation Logic (full list scan)
+    let finalResults = [];
+    if (filtered.length > 0) {
+        const cheapest = filtered[0];
 
-        // Find cheapest 100% option
-        const cheapest100 = top10.find(s => s.effectiveRate >= 1.0);
+        // Find cheapest 100% option in the entire filtered set
+        const cheapest100 = filtered.find(s => s.effectiveRate >= 1.0);
 
-        const margin = 1.05; // 5% worth it margin
+        const margin = 1.10; // 10% worth it margin
+        let recommended;
+
         if (cheapest100 && cheapest100.totalCost <= cheapest.totalCost * margin) {
             cheapest100.isRecommended = true;
+            recommended = cheapest100;
             if (cheapest100 !== cheapest) {
                 cheapest.isCheapest = true;
             }
         } else {
             cheapest.isRecommended = true;
+            recommended = cheapest;
         }
 
-        // 5. Ensure RECOMMENDED is at the top
-        top10.sort((a, b) => (a.isRecommended ? -1 : b.isRecommended ? 1 : 0));
+        // 5. Construct Top 10 + Mandatory Recommended/Cheapest
+        finalResults = filtered.slice(0, 10);
+
+        // Ensure RECOMMENDED is in the list
+        if (!finalResults.includes(recommended)) {
+            finalResults.push(recommended);
+        }
+
+        // Final sorting for display: Recommended on top, then by cost
+        finalResults.sort((a, b) => {
+            if (a.isRecommended) return -1;
+            if (b.isRecommended) return 1;
+            return a.totalCost - b.totalCost;
+        });
     }
 
-    return top10;
+    return finalResults.slice(0, 10);
 }
 
 function renderResults(base, baseCost, savingPerPct, itemResults, baseRate, breakdown) {
