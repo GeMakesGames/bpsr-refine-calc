@@ -182,6 +182,11 @@ function calculate() {
 
     // 7. Render
     renderResults(baseStats, baseTotalCost, savingPerOnePercent, itemResults, data.success, breakdown);
+
+    // 8. Run Optimization (Brute Force)
+    const marketPrices = { moss: pMoss, buri: pBuri, meteor: pMeteor };
+    const optimalStrategies = findOptimalCombinations(data.success, marketPrices, baseAttemptCost, baseStats.avgAttempts);
+    renderOptimization(optimalStrategies);
 }
 
 function calculateExpectedValue(baseRate, pityStep, itemBoost, currentPityAccumulation) {
@@ -198,6 +203,61 @@ function calculateExpectedValue(baseRate, pityStep, itemBoost, currentPityAccumu
         accumulatedPity += pityStep;
     }
     return { avgAttempts: expectedAttempts };
+}
+
+function findOptimalCombinations(baseRate, prices, baseAttemptCost, baseAvgAttempts) {
+    const results = [];
+
+    // Constraints
+    const MAX_MOSS = 20;
+    const MAX_BURI = 5;
+    const MAX_METEOR = 3;
+
+    // Brute Force Iterate
+    // Optimization: If baseRate is already high, we limit max items to avoid pointless 100%+ checks
+    // But for simplicity/correctness with the user's constraints, we just run the loops.
+    // It's 21 * 6 * 4 = 504 iterations. Very fast.
+
+    for (let m = 0; m <= MAX_MOSS; m++) {
+        for (let b = 0; b <= MAX_BURI; b++) {
+            for (let t = 0; t <= MAX_METEOR; t++) {
+
+                // Calculate Rate
+                const bonus = (m * 0.03) + (b * 0.05) + (t * 0.05);
+                const currentRate = baseRate + bonus;
+
+                // Stop if we are already way past 100% in a wasteful way? 
+                // Actually, just cap it at 1.0 logic is inside calculateExpectedValue.
+                // But we should record it.
+
+                // Calculate Per Attempt Item Cost
+                const itemCostPerAttempt = (m * prices.moss) + (b * prices.buri) + (t * prices.meteor);
+                const totalAttemptCost = baseAttemptCost + itemCostPerAttempt;
+
+                // Calculate Avg Attempts
+                const stats = calculateExpectedValue(currentRate, PITY_INCREMENT, 0, 0); // Boost is in currentRate
+
+                // Total Project Cost
+                const totalProjectCost = stats.avgAttempts * totalAttemptCost;
+
+                results.push({
+                    moss: m,
+                    buri: b,
+                    meteor: t,
+                    rate: Math.min(currentRate, 1.0),
+                    avgAttempts: stats.avgAttempts,
+                    totalCost: totalProjectCost,
+                    itemCostOffset: itemCostPerAttempt // Extra info
+                });
+            }
+        }
+    }
+
+    // Sort by Total Cost Ascending
+    results.sort((a, b) => a.totalCost - b.totalCost);
+
+    // Return Top 10
+    return results.slice(0, 10);
 }
 
 function renderResults(base, baseCost, savingPerPct, itemResults, baseRate, breakdown) {
@@ -265,11 +325,11 @@ function renderResults(base, baseCost, savingPerPct, itemResults, baseRate, brea
         </div>
     `;
 
-    // 3. Breakdown Card (New)
+    // 3. Breakdown Card
     const bd = breakdown || {};
     const breakdownHtml = `
         <div style="width: 100%; background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border);">
-            <h3 style="font-size: 1rem; color: var(--text-main); margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">Cost Breakdown (Per Attempt)</h3>
+            <h3 style="font-size: 1rem; color: var(--text-main); margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">Base Cost Breakdown (Per Attempt)</h3>
             
             <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">
                 <span>${bd.crystals.name}</span>
@@ -292,6 +352,39 @@ function renderResults(base, baseCost, savingPerPct, itemResults, baseRate, brea
     `;
 
     resultsDiv.innerHTML = summaryCardHtml + itemsHtml + breakdownHtml;
+}
+
+function renderOptimization(strategies) {
+    const container = document.getElementById('optimization-container');
+    const tbody = document.getElementById('optTableBody');
+    container.classList.remove('hidden');
+    tbody.innerHTML = '';
+
+    const fmt = (n) => formatNumber(n);
+
+    strategies.forEach((s, index) => {
+        const row = document.createElement('tr');
+        if (index === 0) row.classList.add('best-row');
+
+        const itemsStr = [
+            s.moss > 0 ? `<span class="item-badge moss">${s.moss} Moss</span>` : '',
+            s.buri > 0 ? `<span class="item-badge buri">${s.buri} Buri</span>` : '',
+            s.meteor > 0 ? `<span class="item-badge meteor">${s.meteor} Meteor</span>` : '',
+            (s.moss === 0 && s.buri === 0 && s.meteor === 0) ? '<span style="opacity:0.5">None</span>' : ''
+        ].join('');
+
+        const verdictStr = index === 0 ? '<span style="color:var(--success); font-weight:bold;">BEST</span>' :
+            (index < 3 ? 'Good' : '');
+
+        row.innerHTML = `
+            <td>${itemsStr}</td>
+            <td>${(s.rate * 100).toFixed(0)}%</td>
+            <td>${s.avgAttempts.toFixed(2)}</td>
+            <td style="color:${index === 0 ? 'var(--text-main)' : 'var(--text-muted)'}">${fmt(s.totalCost)}</td>
+            <td>${verdictStr}</td>
+        `;
+        tbody.appendChild(row);
+    });
 }
 
 function formatNumber(num) {

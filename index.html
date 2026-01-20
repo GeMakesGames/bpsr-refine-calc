@@ -131,6 +131,30 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Optimization Section -->
+            <section id="optimization-container" class="results-area hidden"
+                style="border-top: 1px solid var(--border); margin-top: 1.5rem; padding-top: 1.5rem;">
+                <div class="section-header" style="margin-bottom: 1rem; cursor: default;">
+                    <h2 style="font-size: 1.1rem; color: var(--primary);">Optimization Analysis (Top 10)</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="opt-table">
+                        <thead>
+                            <tr>
+                                <th>Items Used</th>
+                                <th>Success Rate</th>
+                                <th>Avg Attempts</th>
+                                <th>Total Cost</th>
+                                <th>Verdict</th>
+                            </tr>
+                        </thead>
+                        <tbody id="optTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </main>
 
