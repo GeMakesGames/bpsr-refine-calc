@@ -38,10 +38,15 @@ const LEVEL_DATA = [
 
 const SLOT_CONFIG = {
     weapon: { mat: 'mystery', costMod: 1.0 },
-    armor_head: { mat: 'mystery', costMod: 0.5 },
-    hand_foot: { mat: 'radiant', costMod: 0.5 },
-    ear_neck: { mat: 'radiant', costMod: 0.5 },
-    ring_brace: { mat: 'fine', costMod: 0.5 }
+    head: { mat: 'mystery', costMod: 0.5 },
+    armor: { mat: 'mystery', costMod: 0.5 },
+    gauntlets: { mat: 'radiant', costMod: 0.5 },
+    boots: { mat: 'radiant', costMod: 0.5 },
+    earrings: { mat: 'radiant', costMod: 0.5 },
+    necklace: { mat: 'radiant', costMod: 0.5 },
+    ring: { mat: 'fine', costMod: 0.5 },
+    bracelet: { mat: 'fine', costMod: 0.5 },
+    charm: { mat: 'fine', costMod: 0.5 }
 };
 
 const PITY_INCREMENT = 0.02;
