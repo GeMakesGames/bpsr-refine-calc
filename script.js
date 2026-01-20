@@ -206,68 +206,66 @@ function calculateExpectedValue(baseRate, pityStep, itemBoost, currentPityAccumu
 }
 
 function findOptimalCombinations(baseRate, prices, baseAttemptCost, baseAvgAttempts) {
-    const results = [];
+    let allResults = [];
 
     // Constraints
     const MAX_MOSS = 20;
     const MAX_BURI = 5;
     const MAX_METEOR = 3;
 
-    // Brute Force Iterate with Pruning
-    // Rule: "Once 100% is reached do not allow adding a new mat"
-
+    // 1. Brute Force Iterate
     for (let m = 0; m <= MAX_MOSS; m++) {
         const rateAfterMoss = baseRate + (m * 0.03);
+        if (m > 0 && rateAfterMoss - 0.03 >= 1.0) break; // Already hit 100% with fewer moss
 
         for (let b = 0; b <= MAX_BURI; b++) {
             const rateAfterBuri = rateAfterMoss + (b * 0.05);
+            if (b > 0 && rateAfterBuri - 0.05 >= 1.0) break;
 
             for (let t = 0; t <= MAX_METEOR; t++) {
+                const currentRate = rateAfterBuri + (t * 0.05);
 
-                // Calculate Rate
-                const bonus = (m * 0.03) + (b * 0.05) + (t * 0.05);
-                const currentRate = baseRate + bonus;
-
-                // Calculate Costs
                 const itemCostPerAttempt = (m * prices.moss) + (b * prices.buri) + (t * prices.meteor);
                 const totalAttemptCost = baseAttemptCost + itemCostPerAttempt;
-
-                // Expected Value uses capped rate (max 100%)
                 const effectiveRate = Math.min(currentRate, 1.0);
                 const stats = calculateExpectedValue(effectiveRate, PITY_INCREMENT, 0, 0);
-
                 const totalProjectCost = stats.avgAttempts * totalAttemptCost;
 
-                results.push({
+                allResults.push({
                     moss: m,
                     buri: b,
                     meteor: t,
-                    rate: currentRate, // UI shows raw (e.g. 101%)
+                    rate: currentRate,
+                    effectiveRate: effectiveRate,
                     avgAttempts: stats.avgAttempts,
-                    totalCost: totalProjectCost,
-                    itemCostOffset: itemCostPerAttempt
+                    totalCost: totalProjectCost
                 });
 
-                // PRUNING: If this specific item addition pushed us to/past 100%, 
-                // we stop adding MORE of this specific item (Meteor).
                 if (currentRate >= 1.0) break;
             }
-
-            // PRUNING: If Moss+Buri (with 0 Meteor) was already >= 100%, 
-            // we stop adding MORE Buri.
-            if (rateAfterBuri >= 1.0) break;
         }
-
-        // PRUNING: If Moss (with 0 Buri/Meteor) was already >= 100%, 
-        // we stop adding MORE Moss.
-        if (rateAfterMoss >= 1.0) break;
     }
 
-    // Sort by Total Cost Ascending
-    results.sort((a, b) => a.totalCost - b.totalCost);
+    // 2. Redundancy Filter: Only remove a combination if a sub-combination
+    // reaches the same (or better) effective success rate.
+    // This allows alternative strategies (like Meteor vs Buri) even if one is cheaper,
+    // while still removing clearly "wasteful" extras (like adding Moss to a 100% Buri combo).
+    const filtered = allResults.filter(target => {
+        return !allResults.some(other => {
+            if (target === other) return false;
 
-    // Return Top 10
-    return results.slice(0, 10);
+            const isSubset = other.moss <= target.moss &&
+                other.buri <= target.buri &&
+                other.meteor <= target.meteor;
+
+            // If 'other' is a simpler version of 'target' and already hits the same or better rate
+            return isSubset && (other.effectiveRate >= target.effectiveRate);
+        });
+    });
+
+    // 3. Sort and Return Top 10
+    filtered.sort((a, b) => a.totalCost - b.totalCost);
+    return filtered.slice(0, 10);
 }
 
 function renderResults(base, baseCost, savingPerPct, itemResults, baseRate, breakdown) {
